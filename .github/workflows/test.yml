@@ -388,6 +388,36 @@ jobs:
           nix develop -c zig build --system ${{ steps.deps.outputs.deps }} -Demit-macos-app=false -Drenderer=metal -Dfont-backend=coretext_harfbuzz
           nix develop -c zig build --system ${{ steps.deps.outputs.deps }} -Demit-macos-app=false -Drenderer=metal -Dfont-backend=coretext_noshape
 
+  build-freebsd:
+    runs-on: ubuntu-latest #namespace-profile-ghostty-md-systemd
+    #needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      # Needed to work on Namespace
+      - run: sudo systemctl start ssh
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.1
+
+      - run: |
+          ZIG_GLOBAL_CACHE_DIR=offline-cache ./nix/build-support/fetch-zig-cache.sh
+
+      - name: test
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          copyback: false
+          prepare: |
+            pkg update
+            pkg upgrade -y
+            pkg install -y zig gettext-tools hs-pandoc libxml2 blueprint-compiler gtk4 libadwaita
+
+          run: |
+            zig build --system="offline-cache/p" -fsys=simdutf -fno-sys=spirv-cross -Dapp-runtime=gtk test
+
   build-snap:
     strategy:
       fail-fast: false
